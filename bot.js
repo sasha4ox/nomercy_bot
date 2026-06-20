@@ -114,4 +114,12 @@ client.on('messageCreate', async (message) => {
   }
 });
 
-client.login(process.env.DISCORD_TOKEN);
+const token = process.env.DISCORD_TOKEN?.trim();
+if (!token) {
+  console.error(
+    'Missing DISCORD_TOKEN. Set it in Railway → Variables (or in a local .env file).'
+  );
+  process.exit(1);
+}
+
+client.login(token);
