@@ -6,6 +6,7 @@ const {
 } = require('discord.js');
 
 const ROLE_ID = '1517843561620443177';
+const TEST_ROLE_ID = '1518028418476806234';
 const VOICE_CHANNEL_ID = '1207352167565103214';
 const OWNER_ID = '424559690320707584';
 
@@ -22,15 +23,16 @@ client.once('clientReady', () => {
   console.log(`Logged in as ${client.user.tag}`);
 });
 
-async function notifyRoleMembers(guild, channel, eventName) {
-  const role = guild.roles.cache.get(ROLE_ID);
+async function notifyRoleMembers(guild, channel, eventName, roleId) {
+  const role = guild.roles.cache.get(roleId);
   if (!role) {
     console.log('Role not found');
     await channel.send('❌ Role not found');
     return;
   }
 
-  console.log(`Role found: ${role.name}`);
+  const isTest = roleId === TEST_ROLE_ID;
+  console.log(`Role found: ${role.name}${isTest ? ' (test)' : ''}`);
   await guild.members.fetch();
 
   console.log(`Guild members: ${guild.memberCount}`);
@@ -72,16 +74,20 @@ async function notifyRoleMembers(guild, channel, eventName) {
     }
   }
 
-  await channel.send(`✅ ${eventName} notifications sent: ${sent}\n❌ Failed: ${failed}`);
+  await channel.send(
+    `✅ ${eventName} notifications sent${isTest ? ' (test)' : ''}: ${sent}\n❌ Failed: ${failed}`
+  );
   console.log(`Done. Sent=${sent}, Failed=${failed}`);
 }
 
 client.on('messageCreate', async (message) => {
   if (message.author.bot || message.author.id !== OWNER_ID) return;
 
-  const match = message.content.trim().match(/^!(gvg|rb)(?:\s+(\d+))?$/i);
+  const match = message.content.trim().match(/^!(?:test\s+)?(gvg|rb)(?:\s+(\d+))?$/i);
   if (!match) return;
 
+  const isTest = /^!test\s+/i.test(message.content.trim());
+  const roleId = isTest ? TEST_ROLE_ID : ROLE_ID;
   const eventName = match[1].toLowerCase() === 'gvg' ? 'GvG' : 'RB';
   const minutes = match[2] ? parseInt(match[2], 10) : 0;
 
@@ -90,24 +96,25 @@ client.on('messageCreate', async (message) => {
     return;
   }
 
-  console.log(`!${match[1]} command received${minutes > 0 ? ` (${minutes} min delay)` : ''}`);
+  const testLabel = isTest ? ' (test)' : '';
+  console.log(`!${isTest ? 'test ' : ''}${match[1]} command received${minutes > 0 ? ` (${minutes} min delay)` : ''}`);
 
   try {
     if (minutes > 0) {
       const minuteLabel = minutes === 1 ? 'minute' : 'minutes';
       await message.reply(
-        `⏰ Boss, in **${minutes}** ${minuteLabel} I will notify everyone for **${eventName}**!`
+        `⏰ Boss, in **${minutes}** ${minuteLabel} I will notify everyone for **${eventName}**${testLabel}!`
       );
 
       setTimeout(() => {
-        notifyRoleMembers(message.guild, message.channel, eventName).catch(console.error);
+        notifyRoleMembers(message.guild, message.channel, eventName, roleId).catch(console.error);
       }, minutes * 60 * 1000);
 
       return;
     }
 
-    await message.reply(`⚔️ Boss, I'm preparing your peasants for the ${eventName}!`);
-    await notifyRoleMembers(message.guild, message.channel, eventName);
+    await message.reply(`⚔️ Boss, I'm preparing your peasants for the ${eventName}${testLabel}!`);
+    await notifyRoleMembers(message.guild, message.channel, eventName, roleId);
   } catch (error) {
     console.error(error);
     await message.reply('❌ Error occurred');
