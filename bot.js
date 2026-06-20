@@ -23,11 +23,49 @@ client.once('clientReady', () => {
   console.log(`Logged in as ${client.user.tag}`);
 });
 
+function parseCommand(content) {
+  const text = content.trim();
+
+  const testStandalone = text.match(/^!test$/i);
+  if (testStandalone) {
+    return { isTest: true, eventName: 'Test', minutes: 0 };
+  }
+
+  const testDelayed = text.match(/^!test\s+(\d+)$/i);
+  if (testDelayed) {
+    return {
+      isTest: true,
+      eventName: 'Test',
+      minutes: parseInt(testDelayed[1], 10),
+    };
+  }
+
+  const testWithEvent = text.match(/^!test\s+(gvg|rb)(?:\s+(\d+))?$/i);
+  if (testWithEvent) {
+    return {
+      isTest: true,
+      eventName: testWithEvent[1].toLowerCase() === 'gvg' ? 'GvG' : 'RB',
+      minutes: testWithEvent[2] ? parseInt(testWithEvent[2], 10) : 0,
+    };
+  }
+
+  const normal = text.match(/^!(gvg|rb)(?:\s+(\d+))?$/i);
+  if (normal) {
+    return {
+      isTest: false,
+      eventName: normal[1].toLowerCase() === 'gvg' ? 'GvG' : 'RB',
+      minutes: normal[2] ? parseInt(normal[2], 10) : 0,
+    };
+  }
+
+  return null;
+}
+
 async function notifyRoleMembers(guild, channel, eventName, roleId) {
   const role = guild.roles.cache.get(roleId);
   if (!role) {
-    console.log('Role not found');
-    await channel.send('❌ Role not found');
+    console.log(`Role not found: ${roleId}`);
+    await channel.send(`❌ Role not found (\`${roleId}\`)`);
     return;
   }
 
@@ -35,13 +73,23 @@ async function notifyRoleMembers(guild, channel, eventName, roleId) {
   console.log(`Role found: ${role.name}${isTest ? ' (test)' : ''}`);
   await guild.members.fetch();
 
-  console.log(`Guild members: ${guild.memberCount}`);
-  console.log(`Role members: ${role.members.size}`);
+  const members = guild.members.cache.filter((member) =>
+    member.roles.cache.has(roleId)
+  );
 
-  for (const member of role.members.values()) {
+  console.log(`Guild members: ${guild.memberCount}`);
+  console.log(`Role members: ${members.size}`);
+
+  for (const member of members.values()) {
     console.log(`${member.user.username} -> ${member.id}`);
   }
-  console.log(`Members count: ${role.members.size}`);
+
+  if (members.size === 0) {
+    await channel.send(
+      `❌ No members found with role **${role.name}**${isTest ? ' (test)' : ''}. Make sure the bot has **Server Members Intent** enabled.`
+    );
+    return;
+  }
 
   const voiceChannel = guild.channels.cache.get(VOICE_CHANNEL_ID);
   if (!voiceChannel) {
@@ -58,9 +106,9 @@ async function notifyRoleMembers(guild, channel, eventName, roleId) {
   console.log(`Invite created: ${invite.url}`);
 
   let sent = 0;
-  let failed = 0;
+  const failed = [];
 
-  for (const member of role.members.values()) {
+  for (const member of members.values()) {
     try {
       await member.send(
         `⚔️ ${eventName} started!\n\nJoin voice:\n${invite.url}`
@@ -69,35 +117,44 @@ async function notifyRoleMembers(guild, channel, eventName, roleId) {
       console.log(`DM sent to ${member.user.username}`);
       sent++;
     } catch (error) {
-      console.log(`Failed DM: ${member.user.username}`);
-      failed++;
+      const reason =
+        error.code === 50007
+          ? 'DMs disabled or bot blocked'
+          : error.message || 'Unknown error';
+      console.log(`Failed DM: ${member.user.username} — ${reason}`);
+      failed.push({ name: member.user.username, reason });
     }
   }
 
-  await channel.send(
-    `✅ ${eventName} notifications sent${isTest ? ' (test)' : ''}: ${sent}\n❌ Failed: ${failed}`
-  );
-  console.log(`Done. Sent=${sent}, Failed=${failed}`);
+  let summary = `✅ ${eventName} notifications sent${isTest ? ' (test)' : ''}: ${sent}`;
+  if (failed.length > 0) {
+    summary += `\n❌ Failed: ${failed.length}`;
+    summary += failed
+      .map(({ name, reason }) => `\n• **${name}** — ${reason}`)
+      .join('');
+  }
+  await channel.send(summary);
+  console.log(`Done. Sent=${sent}, Failed=${failed.length}`);
 }
 
 client.on('messageCreate', async (message) => {
   if (message.author.bot || message.author.id !== OWNER_ID) return;
 
-  const match = message.content.trim().match(/^!(?:test\s+)?(gvg|rb)(?:\s+(\d+))?$/i);
-  if (!match) return;
+  const parsed = parseCommand(message.content);
+  if (!parsed) return;
 
-  const isTest = /^!test\s+/i.test(message.content.trim());
+  const { isTest, eventName, minutes } = parsed;
   const roleId = isTest ? TEST_ROLE_ID : ROLE_ID;
-  const eventName = match[1].toLowerCase() === 'gvg' ? 'GvG' : 'RB';
-  const minutes = match[2] ? parseInt(match[2], 10) : 0;
 
-  if (match[2] && (Number.isNaN(minutes) || minutes <= 0)) {
+  if (Number.isNaN(minutes) || minutes < 0) {
     await message.reply('❌ Please provide a valid number of minutes, e.g. `!gvg 15`');
     return;
   }
 
   const testLabel = isTest ? ' (test)' : '';
-  console.log(`!${isTest ? 'test ' : ''}${match[1]} command received${minutes > 0 ? ` (${minutes} min delay)` : ''}`);
+  console.log(
+    `Command received: ${message.content.trim()}${minutes > 0 ? ` (${minutes} min delay)` : ''}`
+  );
 
   try {
     if (minutes > 0) {
