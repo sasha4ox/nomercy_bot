@@ -16,6 +16,7 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildVoiceStates,
   ],
 });
 
@@ -107,8 +108,15 @@ async function notifyRoleMembers(guild, channel, eventName, roleId) {
 
   let sent = 0;
   const failed = [];
+  const skipped = [];
 
   for (const member of members.values()) {
+    if (member.voice.channelId === VOICE_CHANNEL_ID) {
+      console.log(`Skipped ${member.user.username} — already in voice`);
+      skipped.push(member.user.username);
+      continue;
+    }
+
     try {
       await member.send(
         `⚔️ ${eventName} started!\n\nJoin voice:\n${invite.url}`
@@ -127,6 +135,10 @@ async function notifyRoleMembers(guild, channel, eventName, roleId) {
   }
 
   let summary = `✅ ${eventName} notifications sent${isTest ? ' (test)' : ''}: ${sent}`;
+  if (skipped.length > 0) {
+    summary += `\n⏭️ Skipped (already in voice): ${skipped.length}`;
+    summary += skipped.map((name) => `\n• **${name}**`).join('');
+  }
   if (failed.length > 0) {
     summary += `\n❌ Failed: ${failed.length}`;
     summary += failed
@@ -134,7 +146,7 @@ async function notifyRoleMembers(guild, channel, eventName, roleId) {
       .join('');
   }
   await channel.send(summary);
-  console.log(`Done. Sent=${sent}, Failed=${failed.length}`);
+  console.log(`Done. Sent=${sent}, Skipped=${skipped.length}, Failed=${failed.length}`);
 }
 
 client.on('messageCreate', async (message) => {
