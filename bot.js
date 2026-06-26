@@ -106,7 +106,7 @@ async function notifyRoleMembers(guild, channel, eventName, roleId) {
 
   console.log(`Invite created: ${invite.url}`);
 
-  let sent = 0;
+  const sent = [];
   const failed = [];
   const skipped = [];
 
@@ -123,7 +123,7 @@ async function notifyRoleMembers(guild, channel, eventName, roleId) {
       );
 
       console.log(`DM sent to ${member.user.username}`);
-      sent++;
+      sent.push(member.user.username);
     } catch (error) {
       const reason =
         error.code === 50007
@@ -134,10 +134,15 @@ async function notifyRoleMembers(guild, channel, eventName, roleId) {
     }
   }
 
-  let summary = `✅ ${eventName} notifications sent${isTest ? ' (test)' : ''}: ${sent}`;
+  const formatList = (names) => names.map((name) => `\n• **${name}**`).join('');
+
+  let summary = `✅ ${eventName} notifications sent${isTest ? ' (test)' : ''}: ${sent.length}`;
+  if (sent.length > 0) {
+    summary += formatList(sent);
+  }
   if (skipped.length > 0) {
     summary += `\n⏭️ Skipped (already in voice): ${skipped.length}`;
-    summary += skipped.map((name) => `\n• **${name}**`).join('');
+    summary += formatList(skipped);
   }
   if (failed.length > 0) {
     summary += `\n❌ Failed: ${failed.length}`;
@@ -146,7 +151,7 @@ async function notifyRoleMembers(guild, channel, eventName, roleId) {
       .join('');
   }
   await channel.send(summary);
-  console.log(`Done. Sent=${sent}, Skipped=${skipped.length}, Failed=${failed.length}`);
+  console.log(`Done. Sent=${sent.length}, Skipped=${skipped.length}, Failed=${failed.length}`);
 }
 
 client.on('messageCreate', async (message) => {
@@ -172,7 +177,7 @@ client.on('messageCreate', async (message) => {
     if (minutes > 0) {
       const minuteLabel = minutes === 1 ? 'minute' : 'minutes';
       await message.reply(
-        `⏰ Boss, in **${minutes}** ${minuteLabel} I will notify everyone for **${eventName}**${testLabel}!`
+        `⏰ My King, in **${minutes}** ${minuteLabel} I shall notify all your subjects about **${eventName}**${testLabel}!`
       );
 
       setTimeout(() => {
