@@ -202,10 +202,10 @@ async function notifyRoleMembers(guild, channel, eventName, roleId, bossName, im
       const headline = bossName
         ? `⚔️ **${bossDisplayName(bossName)}** started!`
         : `⚔️ ${eventName} started!`;
-      await member.send({
-        content: `${headline}\n\nJoin voice:\n${invite.url}`,
-        files: imagePath ? [new AttachmentBuilder(imagePath)] : [],
-      });
+      if (imagePath) {
+        await member.send({ files: [new AttachmentBuilder(imagePath)] });
+      }
+      await member.send(`${headline}\n\nJoin voice:\n${invite.url}`);
 
       console.log(`DM sent to ${member.user.username}`);
       sent.push(member.user.username);
@@ -237,6 +237,12 @@ async function notifyRoleMembers(guild, channel, eventName, roleId, bossName, im
       .join('');
   }
   await channel.send(summary);
+
+  if (imagePath) {
+    await channel.send({ files: [new AttachmentBuilder(imagePath)] });
+    await channel.send(`⚔️ **${label}**`);
+  }
+
   console.log(`Done. Sent=${sent.length}, Skipped=${skipped.length}, Failed=${failed.length}`);
 }
 
@@ -283,14 +289,19 @@ client.on('messageCreate', async (message) => {
       );
 
       setTimeout(() => {
-        notifyRoleMembers(
-          message.guild,
-          message.channel,
-          eventName,
-          roleId,
-          bossName,
-          imagePath
-        ).catch(console.error);
+        (async () => {
+          await message.reply(
+            `⚔️ Boss, I'm preparing your peasants for the ${subject}${testLabel}!`
+          );
+          await notifyRoleMembers(
+            message.guild,
+            message.channel,
+            eventName,
+            roleId,
+            bossName,
+            imagePath
+          );
+        })().catch(console.error);
       }, minutes * 60 * 1000);
 
       return;
