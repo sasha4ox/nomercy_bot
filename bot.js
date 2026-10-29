@@ -1,9 +1,39 @@
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
 
 const {
+  AttachmentBuilder,
   Client,
   GatewayIntentBits,
 } = require('discord.js');
+
+const EVENT_IMAGES = {
+  GvG: path.join(__dirname, 'assets', 'gvg.jpg'),
+  RB: path.join(__dirname, 'assets', 'rb.jpg'),
+};
+const BOSSES_DIR = path.join(__dirname, 'assets', 'bosses');
+const BOSSES = {
+  zaken: { file: 'zaken.jpg', name: 'Zaken' },
+  zak: { file: 'zaken.jpg', name: 'Zaken' },
+  core: { file: 'core.jpg', name: 'Core' },
+  orfen: { file: 'orfen.jpg', name: 'Orfen' },
+  valakas: { file: 'valakas.jpg', name: 'Valakas' },
+  val: { file: 'valakas.jpg', name: 'Valakas' },
+  antharas: { file: 'antharas.jpg', name: 'Antharas' },
+  antaras: { file: 'antharas.jpg', name: 'Antharas' },
+  ant: { file: 'antharas.jpg', name: 'Antharas' },
+  baium: { file: 'baium.jpg', name: 'Baium' },
+  bauim: { file: 'baium.jpg', name: 'Baium' },
+  ba: { file: 'baium.jpg', name: 'Baium' },
+  aq: { file: 'aq.jpg', name: 'Ant Queen' },
+  qa: { file: 'aq.jpg', name: 'Ant Queen' },
+  'queen-ant': { file: 'aq.jpg', name: 'Ant Queen' },
+  'ant-queen': { file: 'aq.jpg', name: 'Ant Queen' },
+  tezza: { file: 'tezza.jpg', name: 'Frintezza' },
+  frintezza: { file: 'tezza.jpg', name: 'Frintezza' },
+};
+const BOSS_LIST = ['zaken', 'core', 'orfen', 'valakas', 'antharas', 'baium', 'aq', 'tezza'];
 
 const ROLE_ID = '1517843561620443177';
 const TEST_ROLE_ID = '1518028418476806234';
@@ -24,45 +54,96 @@ client.once('clientReady', () => {
   console.log(`Logged in as ${client.user.tag}`);
 });
 
-function parseCommand(content) {
-  const text = content.trim();
-
-  const testStandalone = text.match(/^!test$/i);
-  if (testStandalone) {
-    return { isTest: true, eventName: 'Test', minutes: 0 };
-  }
-
-  const testDelayed = text.match(/^!test\s+(\d+)$/i);
-  if (testDelayed) {
-    return {
-      isTest: true,
-      eventName: 'Test',
-      minutes: parseInt(testDelayed[1], 10),
-    };
-  }
-
-  const testWithEvent = text.match(/^!test\s+(gvg|rb)(?:\s+(\d+))?$/i);
-  if (testWithEvent) {
-    return {
-      isTest: true,
-      eventName: testWithEvent[1].toLowerCase() === 'gvg' ? 'GvG' : 'RB',
-      minutes: testWithEvent[2] ? parseInt(testWithEvent[2], 10) : 0,
-    };
-  }
-
-  const normal = text.match(/^!(gvg|rb)(?:\s+(\d+))?$/i);
-  if (normal) {
-    return {
-      isTest: false,
-      eventName: normal[1].toLowerCase() === 'gvg' ? 'GvG' : 'RB',
-      minutes: normal[2] ? parseInt(normal[2], 10) : 0,
-    };
-  }
-
+function eventFromToken(token) {
+  if (!token) return null;
+  const lower = token.toLowerCase();
+  if (lower === 'gvg') return 'GvG';
+  if (lower === 'rb') return 'RB';
   return null;
 }
 
-async function notifyRoleMembers(guild, channel, eventName, roleId) {
+function bossSlug(name) {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function bossDisplayName(name) {
+  const slug = bossSlug(name);
+  if (BOSSES[slug]) return BOSSES[slug].name;
+  return name
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/\b[a-z]/g, (char) => char.toUpperCase());
+}
+
+function bossImagePath(name) {
+  const slug = bossSlug(name);
+  if (!slug) return null;
+  const known = BOSSES[slug];
+  const file = known
+    ? path.join(BOSSES_DIR, known.file)
+    : path.join(BOSSES_DIR, `${slug}.jpg`);
+  return fs.existsSync(file) ? file : null;
+}
+
+function listBosses() {
+  return BOSS_LIST.filter((name) => fs.existsSync(path.join(BOSSES_DIR, BOSSES[name].file)));
+}
+
+function parseCommand(content) {
+  const text = content.trim();
+  const match = text.match(/^!(test|gvg|rb)(?:\s+(.+))?$/i);
+  if (!match) return null;
+
+  const head = match[1].toLowerCase();
+  const parts = match[2] ? match[2].trim().split(/\s+/) : [];
+
+  if (head === 'test' && parts.length === 0) {
+    return { isTest: true, eventName: 'Test', minutes: 0, bossName: null };
+  }
+
+  let isTest = false;
+  let index = 0;
+  let eventToken = head;
+
+  if (head === 'test') {
+    isTest = true;
+    if (eventFromToken(parts[0])) {
+      eventToken = parts[0];
+      index = 1;
+    } else if (/^\d+$/.test(parts[0]) && parts.length === 1) {
+      return {
+        isTest: true,
+        eventName: 'Test',
+        minutes: parseInt(parts[0], 10),
+        bossName: null,
+      };
+    } else {
+      return null;
+    }
+  }
+
+  const eventName = eventFromToken(eventToken);
+  if (!eventName) return null;
+
+  let minutes = 0;
+  let bossParts = parts.slice(index);
+  if (bossParts[0] && /^\d+$/.test(bossParts[0])) {
+    minutes = parseInt(bossParts[0], 10);
+    bossParts = bossParts.slice(1);
+  } else if (bossParts.length > 1 && /^\d+$/.test(bossParts[bossParts.length - 1])) {
+    minutes = parseInt(bossParts[bossParts.length - 1], 10);
+    bossParts = bossParts.slice(0, -1);
+  }
+
+  const bossName = bossParts.join(' ').trim() || null;
+  return { isTest, eventName, minutes, bossName };
+}
+
+async function notifyRoleMembers(guild, channel, eventName, roleId, bossName, imagePath) {
   const role = guild.roles.cache.get(roleId);
   if (!role) {
     console.log(`Role not found: ${roleId}`);
@@ -118,9 +199,13 @@ async function notifyRoleMembers(guild, channel, eventName, roleId) {
     }
 
     try {
-      await member.send(
-        `⚔️ ${eventName} started!\n\nJoin voice:\n${invite.url}`
-      );
+      const headline = bossName
+        ? `⚔️ **${bossDisplayName(bossName)}** started!`
+        : `⚔️ ${eventName} started!`;
+      await member.send({
+        content: `${headline}\n\nJoin voice:\n${invite.url}`,
+        files: imagePath ? [new AttachmentBuilder(imagePath)] : [],
+      });
 
       console.log(`DM sent to ${member.user.username}`);
       sent.push(member.user.username);
@@ -136,7 +221,8 @@ async function notifyRoleMembers(guild, channel, eventName, roleId) {
 
   const formatList = (names) => names.map((name) => `\n• **${name}**`).join('');
 
-  let summary = `✅ ${eventName} notifications sent${isTest ? ' (test)' : ''}: ${sent.length}`;
+  const label = bossName ? bossDisplayName(bossName) : eventName;
+  let summary = `✅ ${label} notifications sent${isTest ? ' (test)' : ''}: ${sent.length}`;
   if (sent.length > 0) {
     summary += formatList(sent);
   }
@@ -160,7 +246,7 @@ client.on('messageCreate', async (message) => {
   const parsed = parseCommand(message.content);
   if (!parsed) return;
 
-  const { isTest, eventName, minutes } = parsed;
+  const { isTest, eventName, minutes, bossName } = parsed;
   const roleId = isTest ? TEST_ROLE_ID : ROLE_ID;
 
   if (Number.isNaN(minutes) || minutes < 0) {
@@ -168,7 +254,23 @@ client.on('messageCreate', async (message) => {
     return;
   }
 
+  let imagePath = EVENT_IMAGES[eventName] || null;
+  if (bossName) {
+    imagePath = bossImagePath(bossName);
+    if (!imagePath) {
+      const known = listBosses();
+      const knownText = known.length
+        ? known.map((name) => `\`${name}\``).join(', ')
+        : 'none yet';
+      await message.reply(
+        `❌ No image for boss **${bossDisplayName(bossName)}**. Known bosses: ${knownText}`
+      );
+      return;
+    }
+  }
+
   const testLabel = isTest ? ' (test)' : '';
+  const subject = bossName ? bossDisplayName(bossName) : eventName;
   console.log(
     `Command received: ${message.content.trim()}${minutes > 0 ? ` (${minutes} min delay)` : ''}`
   );
@@ -177,18 +279,32 @@ client.on('messageCreate', async (message) => {
     if (minutes > 0) {
       const minuteLabel = minutes === 1 ? 'minute' : 'minutes';
       await message.reply(
-        `⏰ My King, in **${minutes}** ${minuteLabel} I shall notify all your subjects about **${eventName}**${testLabel}!`
+        `⏰ My King, in **${minutes}** ${minuteLabel} I shall notify all your subjects about **${subject}**${testLabel}!`
       );
 
       setTimeout(() => {
-        notifyRoleMembers(message.guild, message.channel, eventName, roleId).catch(console.error);
+        notifyRoleMembers(
+          message.guild,
+          message.channel,
+          eventName,
+          roleId,
+          bossName,
+          imagePath
+        ).catch(console.error);
       }, minutes * 60 * 1000);
 
       return;
     }
 
-    await message.reply(`⚔️ Boss, I'm preparing your peasants for the ${eventName}${testLabel}!`);
-    await notifyRoleMembers(message.guild, message.channel, eventName, roleId);
+    await message.reply(`⚔️ Boss, I'm preparing your peasants for the ${subject}${testLabel}!`);
+    await notifyRoleMembers(
+      message.guild,
+      message.channel,
+      eventName,
+      roleId,
+      bossName,
+      imagePath
+    );
   } catch (error) {
     console.error(error);
     await message.reply('❌ Error occurred');
