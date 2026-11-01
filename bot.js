@@ -202,10 +202,13 @@ async function notifyRoleMembers(guild, channel, eventName, roleId, bossName, im
       const headline = bossName
         ? `⚔️ **${bossDisplayName(bossName)}** started!`
         : `⚔️ ${eventName} started!`;
+      const dmPayload = {
+        content: `${headline}\n\nJoin voice:\n${invite.url}`,
+      };
       if (imagePath) {
-        await member.send({ files: [new AttachmentBuilder(imagePath)] });
+        dmPayload.files = [new AttachmentBuilder(imagePath)];
       }
-      await member.send(`${headline}\n\nJoin voice:\n${invite.url}`);
+      await member.send(dmPayload);
 
       console.log(`DM sent to ${member.user.username}`);
       sent.push(member.user.username);
@@ -236,12 +239,12 @@ async function notifyRoleMembers(guild, channel, eventName, roleId, bossName, im
       .map(({ name, reason }) => `\n• **${name}** — ${reason}`)
       .join('');
   }
-  await channel.send(summary);
-
+  const channelPayload = { content: summary };
   if (imagePath) {
-    await channel.send({ files: [new AttachmentBuilder(imagePath)] });
-    await channel.send(`⚔️ **${label}**`);
+    channelPayload.content = `${summary}\n\n⚔️ **${label}**`;
+    channelPayload.files = [new AttachmentBuilder(imagePath)];
   }
+  await channel.send(channelPayload);
 
   console.log(`Done. Sent=${sent.length}, Skipped=${skipped.length}, Failed=${failed.length}`);
 }
