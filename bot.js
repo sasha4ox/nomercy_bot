@@ -143,6 +143,20 @@ function parseCommand(content) {
   return { isTest, eventName, minutes, bossName };
 }
 
+async function deliver(send, payload) {
+  try {
+    await send(payload);
+  } catch (error) {
+    if (error.code !== 50013) throw error;
+    console.log('Missing Mention Everyone permission; sent without the ping');
+    await send({
+      ...payload,
+      content: payload.content.replace(/^@everyone\s*/gm, ''),
+      allowedMentions: { parse: [] },
+    });
+  }
+}
+
 async function notifyRoleMembers(guild, channel, eventName, roleId, bossName, imagePath) {
   const role = guild.roles.cache.get(roleId);
   if (!role) {
@@ -239,12 +253,14 @@ async function notifyRoleMembers(guild, channel, eventName, roleId, bossName, im
       .map(({ name, reason }) => `\n• **${name}** — ${reason}`)
       .join('');
   }
-  const channelPayload = { content: summary };
-  if (imagePath) {
-    channelPayload.content = `${summary}\n\n⚔️ **${label}**`;
-    channelPayload.files = [new AttachmentBuilder(imagePath)];
-  }
-  await channel.send(channelPayload);
+  let content = imagePath ? `${summary}\n\n⚔️ **${label}**` : summary;
+  if (!isTest) content = `@everyone REGROUP\n\n${content}`;
+  const channelPayload = {
+    content,
+    allowedMentions: isTest ? undefined : { parse: ['everyone'] },
+  };
+  if (imagePath) channelPayload.files = [new AttachmentBuilder(imagePath)];
+  await deliver((payload) => channel.send(payload), channelPayload);
 
   console.log(`Done. Sent=${sent.length}, Skipped=${skipped.length}, Failed=${failed.length}`);
 }
@@ -286,10 +302,14 @@ client.on('messageCreate', async (message) => {
 
   try {
     if (minutes > 0) {
-      const minuteLabel = minutes === 1 ? 'minute' : 'minutes';
-      await message.reply(
-        `⏰ My King, in **${minutes}** ${minuteLabel} I shall notify all your subjects about **${subject}**${testLabel}!`
-      );
+      const notifyAtMs = Date.now() + minutes * 60 * 1000;
+      const when = `<t:${Math.floor(notifyAtMs / 1000)}:R>`;
+      let countdown = `⏰ My King, ${when} I shall notify all your subjects about **${subject}**${testLabel}!`;
+      if (!isTest) countdown = `${countdown}\n@everyone REGROUP ${when}`;
+      await deliver((payload) => message.reply(payload), {
+        content: countdown,
+        allowedMentions: isTest ? undefined : { parse: ['everyone'] },
+      });
 
       setTimeout(() => {
         (async () => {
@@ -305,7 +325,7 @@ client.on('messageCreate', async (message) => {
             imagePath
           );
         })().catch(console.error);
-      }, minutes * 60 * 1000);
+      }, notifyAtMs - Date.now());
 
       return;
     }
