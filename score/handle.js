@@ -1,0 +1,68 @@
+const { extractSlots } = require('./ocr');
+const { parseAliases, scoreSlots } = require('./scoring');
+const sheets = require('./sheets');
+
+async function scoreScreenshot(message) {
+  const images = [...message.attachments.values()].filter(isImage);
+  if (!images.length) return;
+  if (!sheets.configured()) {
+    await reply(message, 'Скрин вижу, но в переменных нет таблицы или ключа Google.');
+    return;
+  }
+
+  const slots = [];
+  for (const attachment of images) {
+    const response = await fetch(attachment.url);
+    if (!response.ok) throw new Error(`Не скачал скрин (${response.status})`);
+    slots.push(...await extractSlots(Buffer.from(await response.arrayBuffer())));
+  }
+  const book = await sheets.openScoreSheet();
+  const roster = await sheets.rosterNames(book.roster);
+  const result = scoreSlots(slots, parseAliases(message.content), roster);
+  if (!result.onScreen.length) {
+    await reply(message, 'Не разобрал ники на скрине.');
+    return;
+  }
+  const wrote = await sheets.record(book, {
+    when: timestamp(),
+    messageId: message.id,
+    author: message.member?.displayName || message.author.username,
+    onScreen: result.onScreen,
+    credited: result.credited,
+    note: note(result),
+    link: message.url,
+  });
+  if (wrote) await reply(message, replyText(result));
+}
+
+function isImage(attachment) {
+  if ((attachment.contentType || '').startsWith('image/')) return true;
+  return /\.(png|jpe?g|webp|bmp)$/i.test(attachment.name || '');
+}
+
+function replyText(result) {
+  const lines = [`Засчитано: ${result.credited.join(', ')}`];
+  if (result.replacements.length) {
+    lines.push(`Замены: ${result.replacements.map(([from, to]) => `${from} → ${to}`).join(', ')}`);
+  }
+  if (result.missed.length) lines.push(`Не нашёл на скрине: ${result.missed.join(', ')}`);
+  return lines.join('\n');
+}
+
+function note(result) {
+  const parts = result.replacements.map(([from, to]) => `${from} → ${to}`);
+  if (result.missed.length) parts.push(`не найдены: ${result.missed.join(', ')}`);
+  return parts.join('; ');
+}
+
+function timestamp() {
+  const date = new Date();
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function reply(message, text) {
+  return message.reply({ content: text.slice(0, 1800), allowedMentions: { parse: [] } });
+}
+
+module.exports = { scoreScreenshot, isImage };

@@ -1,0 +1,111 @@
+const ALIAS = /^\s*([A-Za-z0-9_]+)\s*[-–—:]\s*([A-Za-z0-9_]+)\s*$/;
+
+function parseAliases(text) {
+  const aliases = [];
+  for (const line of String(text || '').split(/\r?\n/)) {
+    const match = ALIAS.exec(line.trim());
+    if (match) aliases.push([match[1], match[2]]);
+  }
+  return aliases;
+}
+
+function scoreSlots(slots, aliases, roster) {
+  const picked = slots.filter((readings) => readings.length).map((readings) => pick(readings, roster));
+  const onScreen = unique(picked);
+  const replaced = new Map();
+  const replacements = [];
+  const missed = [];
+  const claimed = new Set();
+  for (const [source, target] of aliases) {
+    const match = findName(source, onScreen);
+    if (!match || claimed.has(match.toLowerCase())) {
+      missed.push(source);
+      continue;
+    }
+    claimed.add(match.toLowerCase());
+    const credit = preferRoster(target, roster);
+    replaced.set(match.toLowerCase(), credit);
+    replacements.push([match, credit]);
+  }
+  const credited = unique(onScreen.map((name) => replaced.get(name.toLowerCase()) || name));
+  return { onScreen, credited, replacements, missed };
+}
+
+function pick(readings, roster) {
+  if (!roster.length) return readings[0];
+  let bestName = readings[0];
+  let bestRank = null;
+  readings.forEach((reading, index) => {
+    const [snapped, distance] = closest(reading, roster);
+    if (distance >= 99) return;
+    const rank = [distance, index];
+    if (!bestRank || rank[0] < bestRank[0] || (rank[0] === bestRank[0] && rank[1] < bestRank[1])) {
+      bestRank = rank;
+      bestName = snapped;
+    }
+  });
+  return bestName;
+}
+
+function preferRoster(name, roster) {
+  const [snapped, distance] = closest(name, roster);
+  return distance < 99 ? snapped : name;
+}
+
+function findName(source, names) {
+  const exact = names.find((name) => name.toLowerCase() === source.toLowerCase());
+  if (exact) return exact;
+  const [snapped, distance] = closest(source, names);
+  return distance < 99 ? snapped : null;
+}
+
+function closest(name, roster) {
+  if (!name || !roster.length) return [name, 99];
+  const folded = name.toLowerCase();
+  const exact = roster.find((item) => item.toLowerCase() === folded);
+  if (exact) return [exact, 0];
+  const ranked = roster
+    .map((item) => [distance(folded, item.toLowerCase()), item])
+    .sort((a, b) => a[0] - b[0] || a[1].toLowerCase().localeCompare(b[1].toLowerCase()));
+  const [bestDistance, best] = ranked[0];
+  const second = ranked[1] ? ranked[1][0] : 99;
+  if (bestDistance <= limit(name.length) && bestDistance < second) return [best, bestDistance];
+  return [name, 99];
+}
+
+function limit(length) {
+  if (length >= 8) return 2;
+  if (length >= 4) return 1;
+  return 0;
+}
+
+function unique(names) {
+  const result = [];
+  const seen = new Set();
+  for (const name of names) {
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(name);
+  }
+  return result;
+}
+
+function distance(left, right) {
+  if (left === right) return 0;
+  let previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= left.length; i += 1) {
+    const current = [i];
+    for (let j = 1; j <= right.length; j += 1) {
+      current.push(Math.min(
+        current[current.length - 1] + 1,
+        previous[j] + 1,
+        previous[j - 1] + (left[i - 1] === right[j - 1] ? 0 : 1),
+      ));
+    }
+    previous = current;
+  }
+  return previous[previous.length - 1];
+}
+
+module.exports = { parseAliases, scoreSlots };
