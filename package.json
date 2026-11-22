@@ -7,13 +7,17 @@
     "node": ">=18.0.0"
   },
   "scripts": {
-    "start": "node bot.js"
+    "start": "node bot.js",
+    "test": "node --test"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "discord.js": "^14.26.4",
-    "dotenv": "^17.4.2"
+    "dotenv": "^17.4.2",
+    "google-auth-library": "^11.3.4",
+    "google-spreadsheet": "^5.3.0",
+    "sharp": "^0.35.5"
   }
 }

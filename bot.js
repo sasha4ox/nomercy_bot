@@ -7,6 +7,7 @@ const {
   Client,
   GatewayIntentBits,
 } = require('discord.js');
+const { scoreScreenshot } = require('./score/handle');
 
 const EVENT_IMAGES = {
   GvG: path.join(__dirname, 'assets', 'gvg.jpg'),
@@ -264,6 +265,19 @@ async function notifyRoleMembers(guild, channel, eventName, roleId, bossName, im
 
   console.log(`Done. Sent=${sent.length}, Skipped=${skipped.length}, Failed=${failed.length}`);
 }
+
+client.on('messageCreate', async (message) => {
+  if (message.author.bot || message.author.id !== OWNER_ID) return;
+  if (message.channelId !== process.env.SCORE_CHANNEL_ID) return;
+  if (![...message.attachments.values()].some((attachment) => (attachment.contentType || '').startsWith('image/') || /\.(png|jpe?g|webp|bmp)$/i.test(attachment.name || ''))) return;
+
+  try {
+    await scoreScreenshot(message);
+  } catch (error) {
+    console.error(error);
+    await message.reply('❌ Не смог записать скрин в таблицу.').catch(() => {});
+  }
+});
 
 client.on('messageCreate', async (message) => {
   if (message.author.bot || message.author.id !== OWNER_ID) return;
