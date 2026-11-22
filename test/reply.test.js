@@ -6,6 +6,7 @@ test('the reply ends with how many people were credited', () => {
   const text = replyText({
     credited: ['Nova', 'Edllexy', 'SlaveOfNova', 'G1DraponKa', 'Hades', 'Akita', 'Bookmaker', 'Happiness'],
     replacements: [['L2026', 'Hades'], ['shytnik', 'Bookmaker']],
+    onScreen: ['Nova', 'Edllexy', 'SlaveOfNova', 'G1DraponKa', 'L2026', 'Akita', 'shytnik'],
     missed: [],
     added: ['Happiness'],
     ignored: [],

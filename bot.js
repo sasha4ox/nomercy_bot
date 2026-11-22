@@ -269,7 +269,6 @@ async function notifyRoleMembers(guild, channel, eventName, roleId, bossName, im
 client.on('messageCreate', async (message) => {
   if (message.author.bot || message.author.id !== OWNER_ID) return;
   if (message.channelId !== process.env.SCORE_CHANNEL_ID) return;
-  if (![...message.attachments.values()].some((attachment) => (attachment.contentType || '').startsWith('image/') || /\.(png|jpe?g|webp|bmp)$/i.test(attachment.name || ''))) return;
 
   try {
     await scoreScreenshot(message);

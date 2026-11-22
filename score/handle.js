@@ -4,9 +4,11 @@ const sheets = require('./sheets');
 
 async function scoreScreenshot(message) {
   const images = [...message.attachments.values()].filter(isImage);
-  if (!images.length) return;
+  const caption = parseCaption(message.content);
+  if (!images.length && !caption.extras.length) return;
   if (!sheets.configured()) {
-    await reply(message, 'Скрин вижу, но в переменных нет таблицы или ключа Google.');
+    const seen = images.length ? 'Скрин вижу' : 'Список вижу';
+    await reply(message, `${seen}, но в переменных нет таблицы или ключа Google.`);
     return;
   }
 
@@ -18,7 +20,6 @@ async function scoreScreenshot(message) {
   }
   const book = await sheets.openScoreSheet();
   const roster = await sheets.rosterNames(book.roster);
-  const caption = parseCaption(message.content);
   const result = scoreSlots(slots, caption.aliases, roster, caption.extras);
   if (!result.credited.length) {
     await reply(message, 'Не разобрал ники на скрине.');
@@ -47,7 +48,9 @@ function replyText(result) {
     lines.push(`Замены: ${result.replacements.map(([from, to]) => `${from} → ${to}`).join(', ')}`);
   }
   if (result.missed.length) lines.push(`Не нашёл на скрине: ${result.missed.join(', ')}`);
-  if (result.added && result.added.length) lines.push(`Дополнительно: ${result.added.join(', ')}`);
+  if (result.onScreen.length && result.added && result.added.length) {
+    lines.push(`Дополнительно: ${result.added.join(', ')}`);
+  }
   if (result.ignored.length) lines.push(`Не из списка: ${result.ignored.join(', ')}`);
   lines.push(`Всего людей: ${result.credited.length}`);
   return lines.join('\n');

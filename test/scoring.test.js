@@ -75,6 +75,14 @@ test('a plus line adds someone who was not on the screenshot', () => {
   ]);
 });
 
+test('a bare list gives those people the points', () => {
+  const caption = parseCaption('Akito\nHades\nNova');
+  const result = scoreSlots([], caption.aliases, ['Akita', 'Hades', 'Nova'], caption.extras);
+  assert.deepEqual(caption.extras, ['Akito', 'Hades', 'Nova']);
+  assert.deepEqual(result.credited, ['Akita', 'Hades', 'Nova']);
+  assert.deepEqual(result.onScreen, []);
+});
+
 test('a plus line does not score a person who is already credited', () => {
   const result = scoreSlots([['Nova']], [], ['Nova', 'Happiness'], ['nova', 'Happiness']);
   assert.deepEqual(result.credited, ['Nova', 'Happiness']);

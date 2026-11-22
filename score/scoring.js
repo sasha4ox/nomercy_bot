@@ -1,5 +1,6 @@
 const ALIAS = /^\s*([A-Za-z0-9_]+)\s*[-–—:]\s*([A-Za-z0-9_]+)\s*$/;
-const EXTRA = /^\s*\+\s*([A-Za-z0-9_]+)\s*$/;
+const EXTRA = /^\s*\+\s*([A-Za-z][A-Za-z0-9_]{2,15})\s*$/;
+const NAME = /^\s*([A-Za-z][A-Za-z0-9_]{2,15})\s*$/;
 
 function parseCaption(text) {
   const aliases = [];
@@ -12,7 +13,12 @@ function parseCaption(text) {
       continue;
     }
     const extra = EXTRA.exec(trimmed);
-    if (extra) extras.push(extra[1]);
+    if (extra) {
+      extras.push(extra[1]);
+      continue;
+    }
+    const name = NAME.exec(trimmed);
+    if (name) extras.push(name[1]);
   }
   return { aliases, extras };
 }
