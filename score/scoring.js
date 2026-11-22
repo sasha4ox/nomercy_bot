@@ -102,6 +102,8 @@ function unique(names) {
   return result;
 }
 
+const CONFUSIONS = ['1li', '0o', 'vw', 'mn'];
+
 function distance(left, right) {
   if (left === right) return 0;
   let previous = Array.from({ length: right.length + 1 }, (_, index) => index);
@@ -111,12 +113,20 @@ function distance(left, right) {
       current.push(Math.min(
         current[current.length - 1] + 1,
         previous[j] + 1,
-        previous[j - 1] + (left[i - 1] === right[j - 1] ? 0 : 1),
+        previous[j - 1] + substitution(left[i - 1], right[j - 1]),
       ));
     }
     previous = current;
   }
   return previous[previous.length - 1];
+}
+
+function substitution(left, right) {
+  if (left === right) return 0;
+  for (const group of CONFUSIONS) {
+    if (group.includes(left) && group.includes(right)) return 0;
+  }
+  return 1;
 }
 
 module.exports = { parseAliases, scoreSlots };

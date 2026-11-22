@@ -23,7 +23,7 @@ test('an unknown alias does not invent a point', () => {
 
 const PARTY = ['Nova', 'SlaveOfNova', 'G1DraponKa', 'L2026', 'Akita', 'shytnik', 'Edllexy'];
 
-test('misreads from the party screenshot snap to the roster and junk is dropped', () => {
+test('misreads from the party screenshot snap to the roster', () => {
   const result = scoreSlots(
     [
       ['Nova'],
@@ -40,7 +40,23 @@ test('misreads from the party screenshot snap to the roster and junk is dropped'
     PARTY,
   );
   assert.deepEqual(result.credited, ['Nova', 'SlaveOfNova', 'G1DraponKa', 'L2026', 'Akita', 'shytnik', 'Edllexy']);
-  assert.deepEqual(result.ignored, ['Meowa']);
+  assert.deepEqual(result.ignored, []);
+});
+
+test('Nova read as Meowa still gets the point', () => {
+  const result = scoreSlots(
+    [['Meowa'], ['SlaveOfNova'], ['G1DraponKa'], ['L2026'], ['Akita'], ['shytnik'], ['Edllexy']],
+    [],
+    PARTY,
+  );
+  assert.deepEqual(result.credited, ['Nova', 'SlaveOfNova', 'G1DraponKa', 'L2026', 'Akita', 'shytnik', 'Edllexy']);
+  assert.deepEqual(result.ignored, []);
+});
+
+test('a reading far from every roster name is dropped', () => {
+  const result = scoreSlots([['Qwertyuiop']], [], PARTY);
+  assert.deepEqual(result.credited, []);
+  assert.deepEqual(result.ignored, ['Qwertyuiop']);
 });
 
 test('roster keeps the digit the small reading lost', () => {
