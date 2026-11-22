@@ -1,15 +1,27 @@
 const ALIAS = /^\s*([A-Za-z0-9_]+)\s*[-–—:]\s*([A-Za-z0-9_]+)\s*$/;
+const EXTRA = /^\s*\+\s*([A-Za-z0-9_]+)\s*$/;
 
-function parseAliases(text) {
+function parseCaption(text) {
   const aliases = [];
+  const extras = [];
   for (const line of String(text || '').split(/\r?\n/)) {
-    const match = ALIAS.exec(line.trim());
-    if (match) aliases.push([match[1], match[2]]);
+    const trimmed = line.trim();
+    const alias = ALIAS.exec(trimmed);
+    if (alias) {
+      aliases.push([alias[1], alias[2]]);
+      continue;
+    }
+    const extra = EXTRA.exec(trimmed);
+    if (extra) extras.push(extra[1]);
   }
-  return aliases;
+  return { aliases, extras };
 }
 
-function scoreSlots(slots, aliases, roster) {
+function parseAliases(text) {
+  return parseCaption(text).aliases;
+}
+
+function scoreSlots(slots, aliases, roster, extras = []) {
   const picked = [];
   const ignored = [];
   for (const readings of slots) {
@@ -38,7 +50,14 @@ function scoreSlots(slots, aliases, roster) {
     replacements.push([match, credit]);
   }
   const credited = unique(onScreen.map((name) => replaced.get(name.toLowerCase()) || name));
-  return { onScreen, credited, replacements, missed, ignored };
+  const added = [];
+  for (const extra of extras) {
+    const credit = preferRoster(extra, roster);
+    if (credited.some((name) => name.toLowerCase() === credit.toLowerCase())) continue;
+    credited.push(credit);
+    added.push(credit);
+  }
+  return { onScreen, credited, replacements, missed, ignored, added };
 }
 
 function pick(readings, roster) {
@@ -129,4 +148,4 @@ function substitution(left, right) {
   return 1;
 }
 
-module.exports = { parseAliases, scoreSlots };
+module.exports = { parseAliases, parseCaption, scoreSlots };

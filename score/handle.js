@@ -1,5 +1,5 @@
 const { extractSlots } = require('./ocr');
-const { parseAliases, scoreSlots } = require('./scoring');
+const { parseCaption, scoreSlots } = require('./scoring');
 const sheets = require('./sheets');
 
 async function scoreScreenshot(message) {
@@ -18,8 +18,9 @@ async function scoreScreenshot(message) {
   }
   const book = await sheets.openScoreSheet();
   const roster = await sheets.rosterNames(book.roster);
-  const result = scoreSlots(slots, parseAliases(message.content), roster);
-  if (!result.onScreen.length) {
+  const caption = parseCaption(message.content);
+  const result = scoreSlots(slots, caption.aliases, roster, caption.extras);
+  if (!result.credited.length) {
     await reply(message, 'Не разобрал ники на скрине.');
     return;
   }
@@ -46,6 +47,7 @@ function replyText(result) {
     lines.push(`Замены: ${result.replacements.map(([from, to]) => `${from} → ${to}`).join(', ')}`);
   }
   if (result.missed.length) lines.push(`Не нашёл на скрине: ${result.missed.join(', ')}`);
+  if (result.added && result.added.length) lines.push(`Дополнительно: ${result.added.join(', ')}`);
   if (result.ignored.length) lines.push(`Не из списка: ${result.ignored.join(', ')}`);
   lines.push(`Всего людей: ${result.credited.length}`);
   return lines.join('\n');
@@ -54,6 +56,7 @@ function replyText(result) {
 function note(result) {
   const parts = result.replacements.map(([from, to]) => `${from} → ${to}`);
   if (result.missed.length) parts.push(`не найдены: ${result.missed.join(', ')}`);
+  if (result.added && result.added.length) parts.push(`дополнительно: ${result.added.join(', ')}`);
   if (result.ignored.length) parts.push(`не из списка: ${result.ignored.join(', ')}`);
   return parts.join('; ');
 }

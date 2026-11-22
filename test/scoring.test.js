@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseAliases, scoreSlots } = require('../score/scoring');
+const { parseAliases, parseCaption, scoreSlots } = require('../score/scoring');
 
 const ROSTER = ['Nova', 'Edllexy', 'shytnik', 'G1DraponKa'];
 
@@ -57,6 +57,28 @@ test('a reading far from every roster name is dropped', () => {
   const result = scoreSlots([['Qwertyuiop']], [], PARTY);
   assert.deepEqual(result.credited, []);
   assert.deepEqual(result.ignored, ['Qwertyuiop']);
+});
+
+test('a plus line adds someone who was not on the screenshot', () => {
+  const caption = parseCaption('l2026 - hades\nshutnik - bookmaker\n+ Happiness');
+  const roster = [...PARTY, 'Hades', 'Bookmaker', 'Happiness'];
+  const result = scoreSlots(
+    [['Nova'], ['Edllexy'], ['SlaveOfNova'], ['G1DraponKa'], ['L2026'], ['Akita'], ['shytnik']],
+    caption.aliases,
+    roster,
+    caption.extras,
+  );
+  assert.deepEqual(result.replacements, [['L2026', 'Hades'], ['shytnik', 'Bookmaker']]);
+  assert.deepEqual(result.added, ['Happiness']);
+  assert.deepEqual(result.credited, [
+    'Nova', 'Edllexy', 'SlaveOfNova', 'G1DraponKa', 'Hades', 'Akita', 'Bookmaker', 'Happiness',
+  ]);
+});
+
+test('a plus line does not score a person who is already credited', () => {
+  const result = scoreSlots([['Nova']], [], ['Nova', 'Happiness'], ['nova', 'Happiness']);
+  assert.deepEqual(result.credited, ['Nova', 'Happiness']);
+  assert.deepEqual(result.added, ['Happiness']);
 });
 
 test('roster keeps the digit the small reading lost', () => {
