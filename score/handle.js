@@ -46,12 +46,14 @@ function replyText(result) {
     lines.push(`Замены: ${result.replacements.map(([from, to]) => `${from} → ${to}`).join(', ')}`);
   }
   if (result.missed.length) lines.push(`Не нашёл на скрине: ${result.missed.join(', ')}`);
+  if (result.ignored.length) lines.push(`Не из списка: ${result.ignored.join(', ')}`);
   return lines.join('\n');
 }
 
 function note(result) {
   const parts = result.replacements.map(([from, to]) => `${from} → ${to}`);
   if (result.missed.length) parts.push(`не найдены: ${result.missed.join(', ')}`);
+  if (result.ignored.length) parts.push(`не из списка: ${result.ignored.join(', ')}`);
   return parts.join('; ');
 }
 

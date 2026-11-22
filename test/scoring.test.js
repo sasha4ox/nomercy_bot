@@ -21,6 +21,28 @@ test('an unknown alias does not invent a point', () => {
   assert.deepEqual(result.missed, ['Edllexy']);
 });
 
+const PARTY = ['Nova', 'SlaveOfNova', 'G1DraponKa', 'L2026', 'Akita', 'shytnik', 'Edllexy'];
+
+test('misreads from the party screenshot snap to the roster and junk is dropped', () => {
+  const result = scoreSlots(
+    [
+      ['Nova'],
+      ['SlavelfMova'],
+      ['Gllraponka'],
+      ['L026'],
+      ['Akita'],
+      ['shtnik'],
+      ['Edllexy'],
+      ['Meowa'],
+      ['SlavelfMoa'],
+    ],
+    [],
+    PARTY,
+  );
+  assert.deepEqual(result.credited, ['Nova', 'SlaveOfNova', 'G1DraponKa', 'L2026', 'Akita', 'shytnik', 'Edllexy']);
+  assert.deepEqual(result.ignored, ['Meowa']);
+});
+
 test('roster keeps the digit the small reading lost', () => {
   const result = scoreSlots(
     [['Nova'], ['Edllexy', 'Edilesc'], ['shytnik'], ['Gibrapenka', 'GlDraponka']],

@@ -10,7 +10,17 @@ function parseAliases(text) {
 }
 
 function scoreSlots(slots, aliases, roster) {
-  const picked = slots.filter((readings) => readings.length).map((readings) => pick(readings, roster));
+  const picked = [];
+  const ignored = [];
+  for (const readings of slots) {
+    if (!readings.length) continue;
+    const name = pick(readings, roster);
+    if (!name) {
+      ignored.push(readings[0]);
+      continue;
+    }
+    picked.push(name);
+  }
   const onScreen = unique(picked);
   const replaced = new Map();
   const replacements = [];
@@ -28,12 +38,12 @@ function scoreSlots(slots, aliases, roster) {
     replacements.push([match, credit]);
   }
   const credited = unique(onScreen.map((name) => replaced.get(name.toLowerCase()) || name));
-  return { onScreen, credited, replacements, missed };
+  return { onScreen, credited, replacements, missed, ignored };
 }
 
 function pick(readings, roster) {
   if (!roster.length) return readings[0];
-  let bestName = readings[0];
+  let bestName = null;
   let bestRank = null;
   readings.forEach((reading, index) => {
     const [snapped, distance] = closest(reading, roster);
@@ -74,7 +84,8 @@ function closest(name, roster) {
 }
 
 function limit(length) {
-  if (length >= 8) return 2;
+  if (length >= 8) return 3;
+  if (length >= 5) return 2;
   if (length >= 4) return 1;
   return 0;
 }
