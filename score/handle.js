@@ -47,6 +47,7 @@ function replyText(result) {
   }
   if (result.missed.length) lines.push(`Не нашёл на скрине: ${result.missed.join(', ')}`);
   if (result.ignored.length) lines.push(`Не из списка: ${result.ignored.join(', ')}`);
+  lines.push(`Всего людей: ${result.credited.length}`);
   return lines.join('\n');
 }
 
@@ -67,4 +68,4 @@ function reply(message, text) {
   return message.reply({ content: text.slice(0, 1800), allowedMentions: { parse: [] } });
 }
 
-module.exports = { scoreScreenshot, isImage };
+module.exports = { scoreScreenshot, isImage, replyText };
