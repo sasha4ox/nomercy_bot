@@ -14,6 +14,13 @@ test('sample screenshot reads the party and applies a substitute', async () => {
   assert.deepEqual(result.credited, ['Nova', 'Ma3dai', 'shytnik', 'G1DraponKa']);
 });
 
+test('Nova is read when the target HP bar is almost empty', async () => {
+  const slots = await extractSlots(path.join(__dirname, 'fixtures', 'nova-low-hp.png'));
+  const roster = ['Nova', 'Akita', 'Edllexy', 'L2026', 'G1DraponKa'];
+  const result = scoreSlots(slots, [], roster);
+  assert.deepEqual(result.credited, ['Nova', 'Akita', 'Edllexy', 'L2026', 'G1DraponKa']);
+});
+
 test('a short mana bar does not swallow the next party row', async () => {
   const slots = await extractSlots(path.join(__dirname, 'fixtures', 'party-tight.png'));
   const roster = ['Nova', 'SlaveOfNova', 'Akita', 'shytnik', 'Edllexy', 'Aleph', 'L2026', 'G1DraponKa', 'Hades'];

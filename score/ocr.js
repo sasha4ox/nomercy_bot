@@ -204,7 +204,7 @@ function stacks(barList) {
     }
     const previous = current[current.length - 1];
     const gap = bar.y0 - previous.y1;
-    const pitch = Math.max(6, previous.y1 - previous.y0 + 1);
+    const pitch = Math.max(6, (previous.y1 - previous.y0 + 1) * 2);
     const aligned = overlap(previous.x0, previous.x1, bar.x0, bar.x1) > 0.5;
     if (gap <= pitch && aligned) current.push(bar);
     else {
