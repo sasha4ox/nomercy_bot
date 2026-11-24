@@ -21,6 +21,13 @@ test('Nova is read when the target HP bar is almost empty', async () => {
   assert.deepEqual(result.credited, ['Nova', 'Akita', 'Edllexy', 'L2026', 'G1DraponKa']);
 });
 
+test('a half-full CP bar still counts the party row', async () => {
+  const slots = await extractSlots(path.join(__dirname, 'fixtures', 'party-half-cp.png'));
+  const roster = ['Nova', 'L2026', 'Bookmaker', 'SlaveOfNova', 'Aleph', 'Akita', 'Edllexy', 'G1DraponKa', 'Hades'];
+  const result = scoreSlots(slots, parseAliases('Akita - Hades'), roster);
+  assert.deepEqual(result.credited, ['Nova', 'L2026', 'Bookmaker', 'SlaveOfNova', 'Aleph', 'Hades', 'Edllexy', 'G1DraponKa']);
+});
+
 test('a short mana bar does not swallow the next party row', async () => {
   const slots = await extractSlots(path.join(__dirname, 'fixtures', 'party-tight.png'));
   const roster = ['Nova', 'SlaveOfNova', 'Akita', 'shytnik', 'Edllexy', 'Aleph', 'L2026', 'G1DraponKa', 'Hades'];

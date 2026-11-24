@@ -43,7 +43,8 @@ async function extractSlots(input) {
   const slots = [];
   const seen = new Set();
   for (const stack of stacks(bars(rgb))) {
-    if (!stack.some((bar) => bar.color === 'gold')) continue;
+    const colors = new Set(stack.map((bar) => bar.color));
+    if (!colors.has('gold') && !(colors.has('red') && colors.has('blue'))) continue;
     const readings = await candidatesAbove(rgb, white, stack);
     if (!readings.length) continue;
     const key = readings[0].toLowerCase();
