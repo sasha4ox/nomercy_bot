@@ -54,7 +54,8 @@ function replyText(result) {
   if (result.ignored.length) lines.push(`Не из списка: ${result.ignored.join(', ')}`);
   const count = result.credited.length;
   lines.push(`В пачке было: ${count}`);
-  if (count < 9) lines.push('Это даже не пачка собралась!');
+  if (count >= 9) lines.push('Ебать красавцы - фулкой пришли!');
+  else lines.push('Это даже не пачка собралась!');
   if (count < 7) lines.push('Ну это уже позорище!');
   return lines.join('\n');
 }

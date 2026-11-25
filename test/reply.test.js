@@ -39,6 +39,6 @@ test('six people gets both remarks', () => {
 
 test('nine people is a full party', () => {
   const text = replyText(result(9));
-  assert.match(text, /В пачке было: 9$/);
+  assert.match(text, /В пачке было: 9\nЕбать красавцы - фулкой пришли!$/);
   assert.doesNotMatch(text, /пачка собралась/);
 });
