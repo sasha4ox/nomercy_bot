@@ -1,14 +1,18 @@
 const { extractSlots } = require('./ocr');
-const { parseCaption, scoreSlots } = require('./scoring');
+const { parseCaption, planTransfers, scoreSlots } = require('./scoring');
 const sheets = require('./sheets');
 
 async function scoreScreenshot(message) {
   const images = [...message.attachments.values()].filter(isImage);
   const caption = parseCaption(message.content);
-  if (!images.length && !caption.extras.length) return;
+  if (!images.length && !caption.extras.length && !caption.transfers.length) return;
   if (!sheets.configured()) {
-    const seen = images.length ? 'Скрин вижу' : 'Список вижу';
+    const seen = images.length ? 'Скрин вижу' : (caption.transfers.length ? 'Перенос вижу' : 'Список вижу');
     await reply(message, `${seen}, но в переменных нет таблицы или ключа Google.`);
+    return;
+  }
+  if (!images.length && !caption.extras.length) {
+    await transferPoints(message, caption.transfers);
     return;
   }
 
@@ -34,7 +38,53 @@ async function scoreScreenshot(message) {
     note: note(result),
     link: message.url,
   });
-  if (wrote) await reply(message, replyText(result));
+  if (!wrote) return;
+  const lines = [replyText(result)];
+  if (caption.transfers.length) {
+    const arrows = caption.transfers.map(([from, to]) => `${from} > ${to}`).join(', ');
+    lines.push(`Перенос уже записанного очка отправь отдельным сообщением, без скрина: ${arrows}`);
+  }
+  await reply(message, lines.join('\n'));
+}
+
+async function transferPoints(message, transfers) {
+  const book = await sheets.openScoreSheet();
+  const roster = await sheets.rosterNames(book.roster);
+  const planned = planTransfers(await sheets.scoreTable(book.score), transfers, roster);
+  const wrote = await sheets.record(book, {
+    when: timestamp(),
+    messageId: message.id,
+    author: message.member?.displayName || message.author.username,
+    onScreen: planned.moves.map(([from]) => from),
+    credited: planned.moves.map(([, to]) => to),
+    points: [],
+    note: transferNote(planned),
+    link: message.url,
+    moves: planned.moves,
+  });
+  if (wrote) await reply(message, transferText(planned));
+}
+
+function transferText(planned) {
+  const lines = [];
+  if (planned.moves.length) {
+    lines.push(`Перенос: ${planned.moves.map(([from, to]) => `${from} → ${to}`).join(', ')}`);
+  }
+  if (planned.failed.length) {
+    lines.push(`Не перенёс: ${planned.failed.map(([from, to, reason]) => `${from} → ${to} (${reason})`).join(', ')}`);
+  }
+  return lines.join('\n') || 'Нечего переносить.';
+}
+
+function transferNote(planned) {
+  const parts = [];
+  if (planned.moves.length) {
+    parts.push(`перенос: ${planned.moves.map(([from, to]) => `${from} → ${to}`).join(', ')}`);
+  }
+  if (planned.failed.length) {
+    parts.push(`не перенёс: ${planned.failed.map(([from, to, reason]) => `${from} → ${to} (${reason})`).join(', ')}`);
+  }
+  return parts.join('; ');
 }
 
 function isImage(attachment) {
@@ -78,4 +128,4 @@ function reply(message, text) {
   return message.reply({ content: text.slice(0, 1800), allowedMentions: { parse: [] } });
 }
 
-module.exports = { scoreScreenshot, isImage, replyText };
+module.exports = { scoreScreenshot, isImage, replyText, transferText };

@@ -274,7 +274,7 @@ client.on('messageCreate', async (message) => {
     await scoreScreenshot(message);
   } catch (error) {
     console.error(error);
-    await message.reply('❌ Не смог записать скрин в таблицу.').catch(() => {});
+    await message.reply('❌ Не смог записать в таблицу.').catch(() => {});
   }
 });
 

@@ -1,15 +1,22 @@
 const ALIAS = /^\s*([A-Za-z0-9_]+)\s*[-–—:]\s*([A-Za-z0-9_]+)\s*$/;
+const TRANSFER = /^\s*([A-Za-z][A-Za-z0-9_]{2,15})\s*>\s*([A-Za-z][A-Za-z0-9_]{2,15})\s*$/;
 const EXTRA = /^\s*\+\s*([A-Za-z][A-Za-z0-9_]{2,15})\s*$/;
 const NAME = /^\s*([A-Za-z][A-Za-z0-9_]{2,15})\s*$/;
 
 function parseCaption(text) {
   const aliases = [];
   const extras = [];
+  const transfers = [];
   for (const line of String(text || '').split(/\r?\n/)) {
     const trimmed = line.trim();
     const alias = ALIAS.exec(trimmed);
     if (alias) {
       aliases.push([alias[1], alias[2]]);
+      continue;
+    }
+    const transfer = TRANSFER.exec(trimmed);
+    if (transfer) {
+      transfers.push([transfer[1], transfer[2]]);
       continue;
     }
     const extra = EXTRA.exec(trimmed);
@@ -20,11 +27,48 @@ function parseCaption(text) {
     const name = NAME.exec(trimmed);
     if (name) extras.push(name[1]);
   }
-  return { aliases, extras };
+  return { aliases, extras, transfers };
 }
 
 function parseAliases(text) {
   return parseCaption(text).aliases;
+}
+
+function matchName(name, names) {
+  const [snapped, distance] = closest(name, names);
+  return distance < 99 ? snapped : null;
+}
+
+function planTransfers(rows, transfers, roster) {
+  const table = rows.map((row) => ({ nick: row.nick, points: Number(row.points) || 0 }));
+  const moves = [];
+  const failed = [];
+  for (const [fromRaw, toRaw] of transfers) {
+    const from = matchName(fromRaw, table.map((row) => row.nick));
+    const source = from && table.find((row) => row.nick.toLowerCase() === from.toLowerCase());
+    if (!source) {
+      failed.push([fromRaw, toRaw, 'нет в таблице']);
+      continue;
+    }
+    if (source.points < 1) {
+      failed.push([source.nick, toRaw, 'нет очка']);
+      continue;
+    }
+    const to = matchName(toRaw, roster) || matchName(toRaw, table.map((row) => row.nick)) || toRaw;
+    if (to.toLowerCase() === source.nick.toLowerCase()) {
+      failed.push([source.nick, to, 'это тот же ник']);
+      continue;
+    }
+    source.points -= 1;
+    let target = table.find((row) => row.nick.toLowerCase() === to.toLowerCase());
+    if (!target) {
+      target = { nick: to, points: 0 };
+      table.push(target);
+    }
+    target.points += 1;
+    moves.push([source.nick, target.nick]);
+  }
+  return { moves, failed, rows: table };
 }
 
 function scoreSlots(slots, aliases, roster, extras = []) {
@@ -154,4 +198,4 @@ function substitution(left, right) {
   return 1;
 }
 
-module.exports = { parseAliases, parseCaption, scoreSlots };
+module.exports = { parseAliases, parseCaption, scoreSlots, planTransfers };

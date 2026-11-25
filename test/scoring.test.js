@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseAliases, parseCaption, scoreSlots } = require('../score/scoring');
+const { parseAliases, parseCaption, planTransfers, scoreSlots } = require('../score/scoring');
 
 const ROSTER = ['Nova', 'Edllexy', 'shytnik', 'G1DraponKa'];
 
@@ -81,6 +81,27 @@ test('a bare list gives those people the points', () => {
   assert.deepEqual(caption.extras, ['Akito', 'Hades', 'Nova']);
   assert.deepEqual(result.credited, ['Akita', 'Hades', 'Nova']);
   assert.deepEqual(result.onScreen, []);
+});
+
+test('an arrow moves one saved point to the other nick', () => {
+  const caption = parseCaption('Akito > Hades');
+  assert.deepEqual(caption.transfers, [['Akito', 'Hades']]);
+  assert.deepEqual(caption.extras, []);
+  const planned = planTransfers(
+    [{ nick: 'Akita', points: 3 }, { nick: 'Hades', points: 1 }],
+    caption.transfers,
+    ['Akita', 'Hades'],
+  );
+  assert.deepEqual(planned.moves, [['Akita', 'Hades']]);
+  assert.deepEqual(planned.failed, []);
+  assert.deepEqual(planned.rows, [{ nick: 'Akita', points: 2 }, { nick: 'Hades', points: 2 }]);
+});
+
+test('an arrow does not invent a point the source never had', () => {
+  const planned = planTransfers([{ nick: 'Akita', points: 0 }], [['Akita', 'Hades']], ['Akita', 'Hades']);
+  assert.deepEqual(planned.moves, []);
+  assert.deepEqual(planned.failed, [['Akita', 'Hades', 'нет очка']]);
+  assert.equal(planned.rows[0].points, 0);
 });
 
 test('a plus line does not score a person who is already credited', () => {

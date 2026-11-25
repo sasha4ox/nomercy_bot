@@ -84,8 +84,47 @@ async function record(book, entry) {
     note: entry.note,
     link: entry.link,
   }, { raw: true });
-  await addPoints(book.score, entry.credited);
+  await addPoints(book.score, entry.points === undefined ? entry.credited : entry.points);
+  if (entry.moves && entry.moves.length) await applyMoves(book.score, entry.moves);
   return true;
+}
+
+async function scoreTable(score) {
+  await score.loadHeaderRow();
+  const rows = await score.getRows();
+  return rows
+    .map((row) => ({
+      nick: String(row.get('nick') || '').trim(),
+      points: Number(row.get('points')) || 0,
+    }))
+    .filter((row) => row.nick);
+}
+
+async function applyMoves(score, moves) {
+  await score.loadHeaderRow();
+  const rows = await score.getRows();
+  const index = new Map();
+  for (const row of rows) {
+    const nick = String(row.get('nick') || '').trim();
+    if (nick) index.set(nick.toLowerCase(), row);
+  }
+  for (const [from, to] of moves) {
+    const source = index.get(from.toLowerCase());
+    if (!source) continue;
+    const current = Number(source.get('points'));
+    if (!Number.isFinite(current) || current < 1) continue;
+    source.set('points', current - 1);
+    await source.save();
+    const target = index.get(to.toLowerCase());
+    if (!target) {
+      const added = await score.addRow({ nick: to, points: 1 }, { raw: true });
+      index.set(to.toLowerCase(), added);
+      continue;
+    }
+    const points = Number(target.get('points'));
+    target.set('points', Number.isFinite(points) ? points + 1 : 1);
+    await target.save();
+  }
 }
 
 async function addPoints(score, nicks) {
@@ -113,5 +152,6 @@ module.exports = {
   configured,
   openScoreSheet,
   rosterNames,
+  scoreTable,
   record,
 };
