@@ -28,6 +28,13 @@ test('a half-full CP bar still counts the party row', async () => {
   assert.deepEqual(result.credited, ['Nova', 'L2026', 'Bookmaker', 'SlaveOfNova', 'Aleph', 'Hades', 'Edllexy', 'G1DraponKa']);
 });
 
+test('a descender on p does not glue the nick to the CP bar', async () => {
+  const slots = await extractSlots(path.join(__dirname, 'fixtures', 'party-descender.png'));
+  const roster = ['Nova', 'shytnik', 'NoTa2', 'Bookmaker', 'G1DraponKa', 'L2026', 'Edllexy'];
+  const result = scoreSlots(slots, [], roster);
+  assert.deepEqual(result.credited, ['Nova', 'shytnik', 'NoTa2', 'Bookmaker', 'G1DraponKa', 'L2026', 'Edllexy']);
+});
+
 test('a short mana bar does not swallow the next party row', async () => {
   const slots = await extractSlots(path.join(__dirname, 'fixtures', 'party-tight.png'));
   const roster = ['Nova', 'SlaveOfNova', 'Akita', 'shytnik', 'Edllexy', 'Aleph', 'L2026', 'G1DraponKa', 'Hades'];

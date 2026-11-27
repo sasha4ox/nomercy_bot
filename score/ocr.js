@@ -227,9 +227,9 @@ async function candidatesAbove(rgb, white, stack) {
   if (y1 <= y0 || x1 <= x0) return [];
   const region = sliceMask(white, rgb.width, x0, y0, x1, y1);
   for (const [bandTop, bandBottom] of textBands(region).reverse()) {
-    const gap = (y1 - y0) - bandBottom;
     const bandHeight = bandBottom - bandTop + 1;
     const topHeight = top.y1 - top.y0 + 1;
+    const gap = bodyGap(region, bandTop, bandBottom, y1 - y0);
     if (gap <= Math.max(2, topHeight) && bandHeight <= Math.max(6, topHeight * 2)) continue;
     const mask = sliceMask(region.data, region.width, 0, bandTop, region.width - 1, bandBottom);
     dropClassIcon(mask);
@@ -255,6 +255,26 @@ function sliceMask(mask, width, x0, y0, x1, y1) {
     for (let x = 0; x < w; x += 1) data[y * w + x] = mask[(y0 + y) * width + (x0 + x)];
   }
   return { data, width: w, height: h };
+}
+
+// Descenders (p, y) hang closer to the bar than the letter body. Digits drawn on
+// the bar stay skipped: their rows are solid, not a one-pixel tail.
+function bodyGap(region, bandTop, bandBottom, span) {
+  const counts = [];
+  for (let y = bandTop; y <= bandBottom; y += 1) {
+    let count = 0;
+    const off = y * region.width;
+    for (let x = 0; x < region.width; x += 1) count += region.data[off + x];
+    counts.push(count);
+  }
+  const peak = counts.reduce((max, count) => Math.max(max, count), 0);
+  const thin = Math.max(2, Math.floor(peak * 0.2));
+  let bottom = bandBottom;
+  for (let index = counts.length - 1; index > 0; index -= 1) {
+    if (counts[index] > thin) break;
+    bottom -= 1;
+  }
+  return span - bottom;
 }
 
 function textBands(region) {
